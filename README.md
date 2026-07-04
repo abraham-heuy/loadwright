@@ -1,81 +1,119 @@
 # loadwright
 
-**Container-native load balancing and autoscaling for self-hosted apps.**
+> **Motivation:** My first project in my distributed systems learning path using Rust.
 
-loadwright sits in front of your containerized app and does two jobs: it
-spreads incoming traffic across however many copies of your app are
-currently running, and it decides — automatically, based on real load —
-when to run more copies and when to shut extras down.
+**Container-native load balancing and autoscaling for self-hosted applications.**
 
-It's built for the gap between "single Docker container, works fine most
-of the time" and "full Kubernetes cluster, more infrastructure than the
-problem needs." If you're self-hosting on your own servers and your app
-falls over during predictable spikes — enrollment day, a product launch,
-an exam release — loadwright is meant to be the small, focused tool that
-fixes exactly that, without asking you to adopt an entire orchestration
-platform first.
+`loadwright` is a lightweight reverse proxy and autoscaler designed for self-hosted, containerized applications. It distributes incoming traffic across multiple running instances of your application and automatically scales those instances based on real traffic and performance metrics.
 
-## Why this exists
+The goal is to bridge the gap between running a single Docker container and adopting a full orchestration platform like Kubernetes. If your application experiences predictable traffic spikes but Kubernetes is more infrastructure than you need, `loadwright` provides a focused solution that is simple to deploy and easy to understand.
 
-This started from a concrete problem: a university's self-hosted 
-portal would slow to a crawl or crash whenever students hit it at once —
-downloading an exam card sounds trivial, but a few hundred simultaneous
-large downloads is real load, and a single server has no way to absorb it.
-The fix isn't "buy a bigger server" (it'll still fall over at the next
-spike) — it's running multiple copies of the app and distributing load
-across them, scaling that number up before the spike and back down after.
+---
 
-That's a generic problem, not a university-specific one, so loadwright is
-built as a standalone open-source tool: point it at a container image and
-a config file, and it handles the proxying and scaling for any app, not
-just this one.
+# Why This Project Exists
 
-## What it actually does
+This project started from a real-world problem.
 
-- **Reverse proxy** — routes requests to a pool of running containers
-  (round robin to start(assumes all the servers are healthy and strong enough to handle requests); the load-balancing strategy is pluggable).
-  Streams both request and response bodies, so one large, slow download
-  doesn't block or slow down everyone else's requests.
-- **Reactive autoscaling** — watches p95 latency, active connections, or
-  requests/sec per backend, and spawns or stops containers when you cross
-  configured thresholds.
-- **Scheduled pre-warming** — if you *know* when a spike is coming (eg: an
-  exam card download window  from 8:00am, a flash sale at noon), tell it in the config and it'll
-  scale up ahead of time instead of reacting after things already slowed
-  down.
-- **Docker-native** — works with any image; no changes to your app
-  required beyond exposing a health-check endpoint.
+A university's self-hosted student portal would become extremely slow or even crash whenever thousands of students attempted to access it simultaneously(this used to annoy me, alooot!). A common example was students downloading examination cards. While each request was simple, hundreds of concurrent downloads created enough load to overwhelm a single application instance.
 
-## How it helps
+Simply upgrading the server was not a sustainable solution. Traffic spikes would eventually exceed the new hardware as well.
 
-- **No more manual scaling.** Nobody has to notice load climbing and SSH
-  in to spin up another container at 8:50am.
-- **No over-provisioning.** You don't need to permanently run enough
-  capacity for your worst-case spike — scale up for it, then back down.
-- **Works on infrastructure you already have.** Self-hosted servers,
-  Docker already installed — no cloud-provider lock-in, no Kubernetes
-  cluster to stand up and maintain first.
-- **Not tied to one app.** Anything you can containerize and give a
-  health-check endpoint to can sit behind loadwright.
+The correct solution was to:
 
-## Quick start
+- run multiple instances of the application,
+- distribute requests between them,
+- automatically increase capacity during peak periods,
+- reduce capacity when demand falls.
+
+Although inspired by a university portal, this is a common problem for many self-hosted applications. `loadwright` was built as a reusable open-source tool that works with any containerized service.
+
+---
+
+# Features
+
+## Reverse Proxy
+
+- Routes requests across multiple running containers.
+- Uses **Round Robin** load balancing by default (assuming healthy backend instances).
+- Load-balancing strategies are designed to be pluggable.
+- Streams request and response bodies, allowing large downloads without blocking other clients.
+
+## Reactive Autoscaling
+
+Automatically monitors backend performance using configurable metrics such as:
+
+- p95 latency
+- Active connections
+- Requests per second
+
+When configured thresholds are exceeded, new containers are started automatically. Idle containers are stopped once demand decreases.
+
+## Scheduled Pre-Warming
+
+Some traffic spikes are predictable.
+
+For example:
+
+- examination result releases
+- student registration periods
+- flash sales
+- product launches
+
+Instead of waiting for latency to increase, `loadwright` can pre-scale the application before the expected surge begins.
+
+## Docker Native
+
+`loadwright` works directly with Docker images.
+
+Your application only needs to expose a health check endpoint. No application code changes are required.
+
+---
+
+# Benefits
+
+- Automatic scaling without manual intervention.
+- Reduced infrastructure costs by avoiding permanent over-provisioning.
+- Works with existing Docker deployments.
+- No dependency on cloud providers.
+- No Kubernetes cluster required.
+- Supports any containerized application with a health endpoint.
+
+---
+
+# Quick Start
+
+Clone the repository:
 
 ```bash
-git clone <this-repo>
+git clone <repository-url>
 cd loadwright
+```
+
+Build the project:
+
+```bash
 cargo build
+```
+
+Run using an example configuration:
+
+```bash
 cargo run -- up examples/exam-portal.toml
 ```
 
-That spawns your configured minimum number of containers, waits for them
-to report healthy, and starts the proxy + autoscaler. Requests to the
-configured `listen_port` get load-balanced across whatever's currently
-running; the autoscaler adjusts that pool in the background based on your
-`[scaling]` config. See [`RUNNING.md`](./RUNNING.md) for the full
-walkthrough — config reference, how to watch it scale, logging, and
-current limitations.
+`loadwright` will:
 
-A minimal config looks like:
+1. Start the configured minimum number of containers.
+2. Wait until each container becomes healthy.
+3. Launch the reverse proxy.
+4. Begin monitoring application load.
+5. Automatically scale containers according to your configuration.
+
+For a complete deployment guide and configuration reference, see **RUNNING.md**.
+
+---
+
+# Example Configuration
 
 ```toml
 [service]
@@ -93,61 +131,105 @@ scale_up_threshold = 800
 scale_down_threshold = 200
 ```
 
-## Project status
+---
 
-Early and functional, not yet battle-tested. The core pieces — config
-parsing, the Docker driver, the streaming proxy, and the reactive +
-scheduled autoscaler — are implemented, and the scaling-decision logic has
-unit test coverage. Known gaps (CPU-based scaling, a `/metrics` endpoint,
-a non-Docker process driver, multi-service support in one process) are
-tracked as open work — see [`RUNNING.md`](./RUNNING.md#whats-next).
+# Current Status
 
-Expect breaking changes before a 1.0.
+`loadwright` is currently in an early but functional stage.
 
-## Architecture, at a glance
+Implemented features include:
 
+- Configuration parsing
+- Docker orchestration
+- Streaming reverse proxy
+- Reactive autoscaling
+- Scheduled autoscaling
+- Unit-tested scaling decision logic
+
+Planned improvements include:
+
+- CPU-based scaling
+- Prometheus `/metrics` endpoint
+- Process-based orchestration driver
+- Multi-service support
+- Additional load-balancing algorithms
+
+Breaking changes should be expected before the first stable `1.0` release.
+
+---
+
+# Architecture
+
+```text
+                  Incoming Requests
+                          │
+                          ▼
+                Reverse Proxy / Load Balancer
+                          │
+         ┌────────────────┴────────────────┐
+         ▼                                 ▼
+ Backend Container 1               Backend Container N
+         ▲                                 ▲
+         └────────────────┬────────────────┘
+                          │
+                    Metrics Collection
+                          │
+                          ▼
+                     Autoscaler Loop
+                          │
+                          ▼
+                 Docker Orchestrator
+               (Start / Stop Containers)
 ```
-requests → proxy (load balancer) → container pool
-                ↑                        │
-          backend list             active conns / latency
-                │                        │
-          autoscaler loop ───────────────┘
-                │
-          orchestrator (docker) → spawn/stop containers
+
+The project is divided into four focused crates:
+
+| Crate | Responsibility |
+|-------|----------------|
+| `lw-config` | Configuration parsing and scaling decisions |
+| `lw-proxy` | Reverse proxy and request routing |
+| `lw-orchestrator` | Docker integration and container lifecycle |
+| `lw-autoscaler` | Scaling control loop |
+
+---
+
+# Contributing
+
+Contributions are welcome.
+
+The project has been intentionally organized into small, focused crates to make it easier for new contributors to get started.
+
+## Good First Contributions
+
+- Implement additional load-balancing algorithms
+  - Least Connections
+  - Weighted Round Robin
+  - Consistent Hashing
+
+- Add CPU-based autoscaling using Docker statistics.
+
+- Implement a `ProcessDriver` for running local processes instead of Docker containers.
+
+- Add a Prometheus-compatible `/metrics` endpoint.
+
+- Expand unit and integration test coverage.
+
+---
+
+## Before Opening a Pull Request
+
+Please:
+
+1. Check existing issues before beginning large changes.
+2. Keep new functionality behind the existing abstraction traits where appropriate.
+3. Add tests for new decision-making or parsing logic.
+4. Run formatting and linting before submitting.
+
+```bash
+cargo fmt
+cargo clippy
+cargo test
 ```
 
-Four crates, each doing one job: `lw-config` (parse + decide),
-`lw-orchestrator` (talk to Docker), `lw-proxy` (route traffic, collect
-metrics), `lw-autoscaler` (the control loop tying the other three
-together). Full crate layout is in [`RUNNING.md`](./RUNNING.md).
-
-## Contributing
-
-Contributions are genuinely welcome — this is a small enough codebase that
-a first PR doesn't require understanding the whole thing first.
-
-**Good places to start:**
-- Add a load-balancing strategy (least-connections, weighted, consistent
-  hashing) — implement the `LoadBalancer` trait in `lw-proxy`.
-- Implement the CPU metric (poll Docker's stats API per container) — the
-  slot for it already exists in `MetricsRegistry::value_for`.
-- Add a `process` driver (spawn a subprocess instead of a container) —
-  implement the `ScalingDriver` trait in `lw-orchestrator`.
-- Add a `/metrics` endpoint in Prometheus format.
-- Write more test coverage, especially around the orchestrator/proxy
-  crates (currently only `lw-config`'s pure logic has unit tests).
-
-**Before opening a PR:**
-1. Check open issues (or open one) to avoid duplicate work on anything
-   non-trivial — a quick heads-up saves everyone time.
-2. Keep new orchestrator/proxy behavior behind the existing `ScalingDriver`
-   / `LoadBalancer` traits where it applies, rather than special-casing.
-3. Add tests for anything with pure logic (decision-making, parsing,
-   config validation) — that's the part of the codebase that's easiest to
-   verify without a live Docker daemon, and where regressions are easiest
-   to catch early.
-4. Run `cargo fmt` and `cargo clippy` before submitting.
-
-
-## License
+---
 
