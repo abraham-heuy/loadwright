@@ -1,0 +1,24 @@
+[service]
+name = "exam-portal"
+image = "ghcr.io/university/exam-portal:latest"
+port = 8080
+health_check = "/healthz"
+listen_port = 9000
+
+[resources]
+cpu_limit = "0.5"
+memory_limit = "512m"
+
+[scaling]
+min_instances = 1
+max_instances = 10
+metric = "p95_latency_ms"
+scale_up_threshold = 800
+scale_down_threshold = 200
+cooldown_secs = 60
+
+[scaling.schedule]
+entries = [
+  { at = "08:55", instances = 6 },
+  { at = "10:30", instances = 1 },
+]

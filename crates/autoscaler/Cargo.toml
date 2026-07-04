@@ -1,0 +1,13 @@
+[package]
+name = "lw-autoscaler"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+lw-config = { path = "../config" }
+lw-orchestrator = { path = "../orchestrator" }
+lw-proxy = { path = "../proxy" }
+tokio.workspace = true
+tracing.workspace = true
+anyhow.workspace = true
+chrono = "0.4"

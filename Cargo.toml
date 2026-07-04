@@ -1,0 +1,45 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/config",
+    "crates/orchestrator",
+    "crates/proxy",
+    "crates/autoscaler",
+]
+
+
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+
+[workspace.dependencies]
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+async-trait = "0.1"
+anyhow = "1"
+thiserror = "1"
+
+[package]
+name = "loadwright"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "loadwright"
+path = "src/main.rs"
+
+[dependencies]
+lw-config = { path = "crates/config" }
+lw-orchestrator = { path = "crates/orchestrator" }
+lw-proxy = { path = "crates/proxy" }
+lw-autoscaler = { path = "crates/autoscaler" }
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+anyhow.workspace = true
+clap = { version = "4", features = ["derive"] }
+axum = "0.8.9"

@@ -1,0 +1,23 @@
+# Rust build output
+/target/
+**/*.rs.bk
+*.pdb
+*.dSYM
+
+# Cargo lock (optional – many projects commit it; but if you want to keep it out, uncomment next line)
+# Cargo.lock
+
+# Local configs / secrets
+.env
+*.local.toml
+
+# IDE / editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# macOS / Windows junk
+.DS_Store
+Thumbs.db

@@ -1,0 +1,24 @@
+[service]
+name = "anime-merch-store"
+image = "ghcr.io/merch/anime-store:latest"
+port = 8080
+health_check = "/health"
+listen_port = 9000
+
+[resources]
+cpu_limit = "1.0"
+memory_limit = "1Gi"
+
+[scaling]
+min_instances = 2
+max_instances = 20
+metric = "p95_latency_ms"
+scale_up_threshold = 600   # lower threshold because anime assets (images, video) are heavier
+scale_down_threshold = 150
+cooldown_secs = 90
+
+[scaling.schedule]
+entries = [
+  { at = "09:55", instances = 12 },  # pre-warm for 10:00 flash sale
+  { at = "12:05", instances = 2 },   # scale back after the rush
+]

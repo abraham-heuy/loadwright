@@ -1,0 +1,15 @@
+[package]
+name = "lw-orchestrator"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+lw-config = { path = "../config" }
+tokio.workspace = true
+tracing.workspace = true
+anyhow.workspace = true
+thiserror.workspace = true
+async-trait.workspace = true
+bollard = "0.16"
+futures-util = "0.3"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
